@@ -1,0 +1,313 @@
+<html>
+
+<head>
+    <title>Concept Bottleneck UI</title>
+    <link class="jsbin" href="http://ajax.googleapis.com/ajax/libs/jqueryui/1/themes/base/jquery-ui.css"
+        rel="stylesheet" type="text/css" />
+    <script class="jsbin" src="http://ajax.googleapis.com/ajax/libs/jquery/1/jquery.min.js"></script>
+    <script class="jsbin" src="http://ajax.googleapis.com/ajax/libs/jqueryui/1.8.0/jquery-ui.min.js"></script>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        .row {
+            margin-left: -5px;
+            margin-right: -5px;
+        }
+
+        .column {
+            float: left;
+            width: 50%;
+            padding: 5px;
+        }
+
+        .row::after {
+            content: "";
+            clear: both;
+            display: table;
+        }
+
+        table {
+            border-collapse: collapse;
+            border-spacing: 0;
+            width: 100%;
+            border: 1px solid #ddd;
+        }
+
+        th,
+        td {
+            text-align: left;
+            padding: 5px;
+        }
+
+        tr:nth-child(even) {
+            background-color: #f2f2f2;
+        }
+    </style>
+</head>
+
+<body>
+    <input type="file" onchange="uploadImage(this);">
+    <br>
+    <img id="inputImage" src="#" alt="Select an image." height="400">
+    <button type="button" id="predictButton" onclick="sendImageToAttributeModel()">Predict</button>
+    <br>
+    <div class="row">
+        <div class="column">
+            <table id="attributeTable">
+                <tr>
+                    <th>Index</th>
+                    <th>Attribute</th>
+                    <th>Probability</th>
+                </tr>
+            </table>
+            <br>
+            <button type="button" id="attributePreviousPage" onclick="attributePreviousPage()">Previous</button>
+            <span>Page </span>
+            <span id="attributeCurrentPage">1</span><span>/</span><span id="attributeTotalPage">1</span>
+            <button type="button" id="attributeNextPage" onclick="attributeNextPage()">Next</button>
+        </div>
+        <div class="column">
+            <table id="classTable">
+                <tr>
+                    <th>Index</th>
+                    <th>Class</th>
+                    <th>Probability</th>
+                </tr>
+            </table>
+            <br>
+            <button type="button" id="classPreviousPage" onclick="classPreviousPage()">Previous</button>
+            <span>Page </span>
+            <span id="classCurrentPage">1</span><span>/</span><span id="classTotalPage">1</span>
+            <button type="button" id="classNextPage" onclick="classNextPage()">Next</button>
+            <button type="button" id="rerun" onclick="sendAttributesToClassModel()">Rerun</button>
+        </div>
+    </div>
+</body>
+
+</html>
+
+<script>
+    var image;
+
+    var attributes = [];
+    var attributeIndices = [];
+    var attributeNames = [];
+
+    var classes = [];
+    var classIndices = [];
+    var classNames = [];
+
+    var attributePage = 0;
+    var classPage = 0;
+
+    isPredictAvailable = () => image != null;
+    isAttributeNextPageAvailable = () => attributePage < Math.ceil(attributes.length / 10) - 1;
+    isAttributePreviousPageAvailable = () => attributePage > 0;
+    isClassNextPageAvailable = () => classPage < Math.ceil(classes.length / 10);
+    isClassPreviousPageAvailable = () => classPage > 0;
+
+    clearAttributeTable = () => {
+        var table = document.getElementById("attributeTable");
+        var i;
+        for (i = table.rows.length - 1; i > 0; i--) {
+            table.deleteRow(i);
+        }
+    }
+
+    putAttributeTable = (page) => {
+        var table = document.getElementById("attributeTable");
+        var i;
+        for (i = 0; i < 10 && page * 10 + i < attributes.length; i++) {
+            var row = table.insertRow(i + 1);
+            var indexCell = row.insertCell(0);
+            var attributeCell = row.insertCell(1);
+            var confidenceCell = row.insertCell(2);
+            indexCell.innerHTML = attributeIndices[page * 10 + i];
+            attributeCell.innerHTML = attributeNames[page * 10 + i];
+            //confidenceCell.innerHTML = attributes[page * 10 + i];
+            confidenceCell.innerHTML = "<input type='number' step='any' value='" +
+                attributes[page * 10 + i] +
+                "' onchange='updateAttribute(" +
+                (page * 10 + i).toString() +
+                ", this.value)'>";
+        }
+    }
+
+    attributeNextPage = () => {
+        if (isAttributeNextPageAvailable()) {
+            attributePage++;
+            clearAttributeTable();
+            putAttributeTable(attributePage);
+            document.getElementById("attributeCurrentPage").innerHTML = attributePage + 1;
+        }
+        updateButtonState();
+    }
+
+    attributePreviousPage = () => {
+        if (isAttributePreviousPageAvailable()) {
+            attributePage--;
+            clearAttributeTable();
+            putAttributeTable(attributePage);
+            document.getElementById("attributeCurrentPage").innerHTML = attributePage + 1;
+        }
+        updateButtonState();
+    }
+
+    clearClassTable = () => {
+        var table = document.getElementById("classTable");
+        var i;
+        for (i = table.rows.length - 1; i > 0; i--) {
+            table.deleteRow(i);
+        }
+    }
+
+    putClassTable = (page) => {
+        var table = document.getElementById("classTable");
+        var i;
+        for (i = 0; i < 10 && page * 10 + i < classes.length; i++) {
+            var row = table.insertRow(i + 1);
+            var indexCell = row.insertCell(0);
+            var classCell = row.insertCell(1);
+            var confidenceCell = row.insertCell(2);
+            indexCell.innerHTML = classIndices[page * 10 + i];
+            classCell.innerHTML = classNames[page * 10 + i];
+            confidenceCell.innerHTML = classes[page * 10 + i];
+        }
+    }
+
+    classNextPage = () => {
+        if (isClassNextPageAvailable()) {
+            classPage++;
+            clearClassTable();
+            putClassTable(classPage);
+            document.getElementById("classCurrentPage").innerHTML = classPage + 1;
+        }
+        updateButtonState();
+    }
+
+    classPreviousPage = () => {
+        if (isClassPreviousPageAvailable()) {
+            classPage--;
+            clearClassTable();
+            putClassTable(classPage);
+            document.getElementById("classCurrentPage").innerHTML = classPage + 1;
+        }
+        updateButtonState();
+    }
+
+    updateButtonState = () => {
+        if (isPredictAvailable()) {
+            document.getElementById("predictButton").removeAttribute("disabled");
+        } else {
+            document.getElementById("predictButton").setAttribute("disabled", "");
+        }
+        if (isAttributeNextPageAvailable()) {
+            document.getElementById("attributeNextPage").removeAttribute("disabled");
+        } else {
+            document.getElementById("attributeNextPage").setAttribute("disabled", "");
+        }
+        if (isAttributePreviousPageAvailable()) {
+            document.getElementById("attributePreviousPage").removeAttribute("disabled");
+        } else {
+            document.getElementById("attributePreviousPage").setAttribute("disabled", "");
+        }
+        if (isClassNextPageAvailable()) {
+            document.getElementById("classNextPage").removeAttribute("disabled");
+        } else {
+            document.getElementById("classNextPage").setAttribute("disabled", "");
+        }
+        if (isClassPreviousPageAvailable()) {
+            document.getElementById("classPreviousPage").removeAttribute("disabled");
+        } else {
+            document.getElementById("classPreviousPage").setAttribute("disabled", "");
+        }
+    }
+
+    updateAttribute = (index, value) => {
+        attributes[index] = parseFloat(value);
+        console.log("updateAttribute: ", index, value);
+    }
+
+    function showAttributes() {
+        attributePage = 0;
+        var table = document.getElementById("attributeTable");
+        clearAttributeTable();
+        putAttributeTable(attributePage);
+        document.getElementById("attributeCurrentPage").innerHTML = attributePage + 1;
+        document.getElementById("attributeTotalPage").innerHTML = Math.ceil(attributeIndices.length / 10);
+        updateButtonState();
+
+    }
+
+    function showClasses() {
+        classPage = 0;
+        var table = document.getElementById("classTable");
+        clearClassTable();
+        putClassTable(classPage);
+        document.getElementById("classCurrentPage").innerHTML = classPage + 1;
+        document.getElementById("classTotalPage").innerHTML = Math.ceil(classIndices.length / 10);
+        updateButtonState();
+    }
+
+    function getPredictClassResult(data, status, xhr) {
+        classes = data.classes;
+        classIndices = data.classIndices;
+        classNames = data.classNames;
+        showClasses();
+    }
+
+    function sendAttributesToClassModel() {
+        $.ajax({
+            url: 'http://localhost:5000/predictClass',
+            type: 'POST',
+            data: JSON.stringify({
+                attributeIndices: attributeIndices,
+                attributes: attributes
+            }),
+            contentType: 'application/json',
+            success: getPredictClassResult
+        });
+    }
+
+    function getPredictAttributeResult(data, status, xhr) {
+        attributes = data.attributes;
+        attributeIndices = data.attributeIndices;
+        attributeNames = data.attributeNames;
+        console.log(attributes);
+        showAttributes();
+        sendAttributesToClassModel();
+    }
+
+    function sendImageToAttributeModel() {
+        var formData = new FormData();
+        formData.append('image', image);
+        $.ajax({
+            url: 'http://127.0.0.1:5000/predictAttributes',
+            type: 'POST',
+            data: formData,
+            processData: false,
+            contentType: false,
+            success: getPredictAttributeResult,
+        });
+    }
+
+    function uploadImage(input) {
+        if (input.files && input.files[0]) {
+            var reader = new FileReader();
+            reader.onload = function (e) {
+                $("#inputImage")
+                    .attr('src', e.target.result)
+                    .height(400)
+                console.log(e.target.result);
+                image = e.target.result;
+                updateButtonState();
+            };
+            reader.readAsDataURL(input.files[0]);
+        }
+    }
+
+    updateButtonState();
+
+</script>

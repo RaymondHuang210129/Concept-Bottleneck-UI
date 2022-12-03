@@ -1,0 +1,27 @@
+[tool.poetry]
+name = "hai-assignent2"
+version = "0.1.0"
+description = ""
+authors = ["RaymondHuang210129 <raymond860909@gmail.com>"]
+readme = "README.md"
+packages = [{include = "hai_assignent2"}]
+
+[tool.poetry.dependencies]
+python = "^3.10"
+torch = "^1.13.0"
+numpy = "^1.23.5"
+torchvision = "^0.14.0"
+matplotlib = "^3.6.2"
+pandas = "^1.5.2"
+flask = "^2.2.2"
+flask-cors = "^3.0.10"
+
+
+[tool.poetry.group.dev.dependencies]
+black = "^22.10.0"
+pylint = "^2.15.6"
+mypy = "^0.991"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
